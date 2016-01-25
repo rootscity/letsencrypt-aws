@@ -15,6 +15,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 
+from random import randint
+
 import boto3
 
 import OpenSSL.crypto
@@ -24,8 +26,11 @@ import rfc3986
 
 DEFAULT_ACME_DIRECTORY_URL = "https://acme-v01.api.letsencrypt.org/directory"
 CERTIFICATE_EXPIRATION_THRESHOLD = datetime.timedelta(days=45)
-# One day
-PERSISTENT_SLEEP_INTERVAL = 60 * 60 * 24
+# Three days
+PERSISTENT_SLEEP_INTERVAL = 60 * 60 * 24 * 3
+# Delay initial check so we dont have a thundering herd on server deploy with multiple servers
+PERSISTENT_SLEEP_INITIAL = randint(60 * 10, 60 * 60 * 8)
+
 DNS_TTL = 30
 
 
@@ -42,6 +47,7 @@ class Logger(object):
             event,
             formatted_data
         ))
+        self._out.flush()
 
 
 def generate_rsa_private_key():
@@ -433,7 +439,9 @@ def update_certificates(persistent=False, force_issue=False):
     )
 
     if persistent:
-        logger.emit("running", mode="persistent")
+        logger.emit("running", mode="persistent", initial=PERSISTENT_SLEEP_INITIAL)
+	# Sleep before we check the first time
+	time.sleep(PERSISTENT_SLEEP_INITIAL)
         while True:
             update_elbs(
                 logger, acme_client, elb_client, route53_client, iam_client,

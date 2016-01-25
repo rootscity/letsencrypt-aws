@@ -13,7 +13,8 @@ RUN python -m virtualenv .venv
 COPY requirements.txt ./
 RUN .venv/bin/pip install -r requirements.txt
 COPY letsencrypt-aws.py ./
+COPY letsencrypt.sh ./
 
 USER nobody
 
-ENTRYPOINT [".venv/bin/python", "letsencrypt-aws.py", "update-certificates"]
+CMD ["./letsencrypt.sh"]
